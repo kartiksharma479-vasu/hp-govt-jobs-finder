@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#123b68" />
+  <title>HP Govt Jobs Finder</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">HP</div>
+        <div><strong>HP Jobs Finder</strong><small>Government Jobs Portal</small></div>
+      </div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="nav-menu" aria-label="Main navigation">
+        <button class="nav-item active" data-page="home"><span>⌂</span> Home</button>
+        <button class="nav-item" data-page="explore"><span>⌕</span> Explore All Jobs</button>
+        <button class="nav-item" data-page="eligible"><span>✓</span> Eligible Jobs <b class="nav-count" id="eligibleCount">0</b></button>
+        <button class="nav-item" data-page="saved"><span>♡</span> Saved Jobs <b class="nav-count" id="savedCount">0</b></button>
+        <button class="nav-item" data-page="noteligible"><span>⊘</span> Not Eligible</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="profile-mini"><div class="avatar">U</div><div><strong id="sidebarName">Your Profile</strong><small>Set up your eligibility</small></div></div>
+        <button class="nav-item" data-page="profile"><span>⚙</span> My Profile</button>
+        <div class="source-note"><span class="status-dot"></span> Demo mode <small>Sample data only</small></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">☰</button>
+        <div class="breadcrumb">HP Government Jobs <span>/</span> <strong id="pageCrumb">Home</strong></div>
+        <div class="top-actions"><span class="date-pill" id="todayDate"></span><button class="profile-button" data-page="profile"><span class="avatar small">U</span><span id="topName">My Profile</span></button></div>
+      </header>
+
+      <section class="page active" id="page-home">
+        <div class="welcome-row">
+          <div><p class="eyebrow">YOUR CAREER, YOUR NEXT STEP</p><h1>Find your next <span>government job.</span></h1><p class="muted">Discover Himachal Pradesh and central government opportunities that match your profile.</p></div>
+          <div class="hero-badge"><div class="hero-icon">✦</div><div><strong>Made for aspirants</strong><small>HPPSC · HPRCA · More</small></div></div>
+        </div>
+        <div class="search-bar"><span>⌕</span><input id="homeSearch" placeholder="Search by post, department or qualification..." /><button id="homeSearchBtn">Search jobs</button></div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-top"><span>All Jobs</span><span class="stat-icon blue">▤</span></div><strong id="statAll">0</strong><small>In the demo database</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Eligible for You</span><span class="stat-icon green">✓</span></div><strong id="statEligible">0</strong><small>Based on your profile</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Closing Soon</span><span class="stat-icon orange">◷</span></div><strong id="statClosing">0</strong><small>Within the next 14 days</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Saved Jobs</span><span class="stat-icon purple">♡</span></div><strong id="statSaved">0</strong><small>Your shortlist</small></div>
+        </div>
+        <div class="section-heading"><div><h2>Jobs matching your profile</h2><p class="muted">A preview of opportunities you may qualify for.</p></div><button class="text-button" data-page="eligible">View all eligible →</button></div>
+        <div class="job-grid" id="homeJobs"></div>
+        <div class="notice"><span>ⓘ</span><div><strong>Demo data notice</strong><p>These are sample listings to demonstrate the interface. They are not verified live vacancies. Official source integration will be added in a later step.</p></div></div>
+      </section>
+
+      <section class="page" id="page-explore">
+        <div class="page-heading"><div><p class="eyebrow">OPPORTUNITIES</p><h1>Explore all jobs</h1><p class="muted">Search and filter the complete job list.</p></div></div>
+        <div class="filters">
+          <input id="exploreSearch" placeholder="Search jobs..." />
+          <select id="sourceFilter"><option value="">All sources</option><option>HPPSC</option><option>HPRCA</option><option>HP Police</option><option>HP High Court</option><option>Central Govt</option></select>
+          <select id="eligibilityFilter"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="noteligible">Not eligible</option><option value="review">Needs verification</option></select>
+        </div>
+        <div class="results-line"><span id="exploreResults">0 jobs</span><span class="demo-label">Demo listings</span></div>
+        <div class="job-grid" id="exploreJobs"></div>
+      </section>
+
+      <section class="page" id="page-eligible">
+        <div class="page-heading"><div><p class="eyebrow">PERSONALIZED</p><h1>Eligible jobs</h1><p class="muted">Jobs matching the profile information you provide.</p></div></div>
+        <div class="notice"><span>ⓘ</span><div><strong>Eligibility is illustrative</strong><p>Final eligibility depends on the official notification, cutoff date, category rules and documents. Always verify before applying.</p></div></div>
+        <div class="job-grid" id="eligibleJobs"></div>
+      </section>
+
+      <section class="page" id="page-saved">
+        <div class="page-heading"><div><p class="eyebrow">YOUR SHORTLIST</p><h1>Saved jobs</h1><p class="muted">Keep track of opportunities you want to revisit.</p></div></div>
+        <div class="job-grid" id="savedJobs"></div>
+      </section>
+
+      <section class="page" id="page-noteligible">
+        <div class="page-heading"><div><p class="eyebrow">ELIGIBILITY CHECK</p><h1>Not eligible</h1><p class="muted">Listings that don't match the demo profile or need a closer review.</p></div></div>
+        <div class="job-grid" id="notEligibleJobs"></div>
+      </section>
+
+      <section class="page" id="page-profile">
+        <div class="page-heading"><div><p class="eyebrow">PERSONAL DETAILS</p><h1>My profile</h1><p class="muted">Add your details to preview personalized job matching.</p></div></div>
+        <form class="profile-form" id="profileForm">
+          <div class="form-intro"><div class="avatar large">U</div><div><strong>Your eligibility profile</strong><p class="muted">This demo saves your profile in this browser only.</p></div></div>
+          <div class="form-grid">
+            <label>Full name<input id="name" name="name" placeholder="Enter your name" /></label>
+            <label>Highest qualification<select id="qualification" name="qualification"><option value="">Select qualification</option><option>12th</option><option>Graduation</option><option>Post Graduation</option><option>PhD</option><option>Diploma</option></select></label>
+            <label>Subject / discipline<input id="subject" name="subject" placeholder="e.g. Political Science" /></label>
+            <label>Category<select id="category" name="category"><option value="">Select category</option><option>General</option><option>SC</option><option>ST</option><option>OBC</option><option>EWS</option></select></label>
+            <label>Date of birth<input id="dob" name="dob" type="date" /></label>
+            <label>Himachali bonafide<select id="bonafide" name="bonafide"><option value="">Select</option><option>Yes</option><option>No</option></select></label>
+            <label>NET / SET qualified?<select id="net" name="net"><option value="">Select</option><option>Yes</option><option>No</option><option>Not applicable</option></select></label>
+            <label>B.Ed. qualified?<select id="bed" name="bed"><option value="">Select</option><option>Yes</option><option>No</option><option>Not applicable</option></select></label>
+          </div>
+          <div class="form-actions"><p class="muted">You can update these details anytime.</p><button class="primary-button" type="submit">Save profile</button></div>
+          <p class="success-message" id="profileSuccess" hidden>Profile saved in this browser.</p>
+        </form>
+      </section>
+
+      <footer><span>HP Govt Jobs Finder</span><span>Demo interface · Verify all details with official notifications</span></footer>
+    </main>
+  </div>
+  <script src="js/jobs.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
