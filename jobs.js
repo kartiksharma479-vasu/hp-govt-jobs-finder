@@ -19,7 +19,7 @@ const JOBS = [
     "post": "Assistant Professor (Anthropology)",
     "department": "Himachal Pradesh Public Service Commission",
     "source": "HPPSC",
-    "qualification": "Master’s degree in the relevant subject with at least 55% marks from a recognised Indian or equivalent foreign university; NET/SET/SLET required, subject to notified Ph.D. exemptions.",
+    "qualification": "Master's degree in the relevant subject with at least 55% marks; applicable 5% relaxation for eligible categories; NET/SET/SLET required, subject to notified Ph.D. exemptions under specified conditions.",
     "subject": "Anthropology",
     "criteria": "Specified 5% marks relaxation for eligible reserved categories and PwD candidates. Desirable: Knowledge of Himachal Pradesh customs, manners and dialects, and suitability for appointment under conditions prevailing in the State.",
     "deadline": "2026-10-16",
