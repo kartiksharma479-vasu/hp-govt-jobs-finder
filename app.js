@@ -15,7 +15,7 @@ function jobCard(job){
   return `<article class="job-card">
     <div class="job-card-top"><span class="source-chip">${escapeHtml(job.source)}</span><button class="save-btn ${saved?"saved":""}" data-save="${escapeHtml(job.id)}" aria-label="Save job">${saved?"♥":"♡"}</button></div>
     <h3>${escapeHtml(job.post)}</h3><p class="job-dept">${escapeHtml(job.department)}</p>
-    <div class="job-meta"><div><span class="meta-label">Qualification</span><span class="meta-value">${escapeHtml(job.qualification)}</span></div><div><span class="meta-label">Last date (sample)</span><span class="meta-value">${dateText}</span></div></div>
+    <div class="job-meta"><div><span class="meta-label">Qualification</span><span class="meta-value">${escapeHtml(job.qualification.length > 180 ? job.qualification.slice(0, 180) + "..." : job.qualification)}${job.qualification.length > 180 ? '<details><summary>View More</summary><div>' + escapeHtml(job.qualification) + '</div></details>' : ''}</span></div><div><span class="meta-label">Last date (sample)</span><span class="meta-value">${dateText}</span></div></div>
     <p class="job-dept"><strong>Criteria:</strong> ${escapeHtml(job.criteria)}</p>
     <div class="card-bottom"><span class="eligibility ${job.status}">${statusLabel(job.status)}</span><div class="card-actions">${notice}${apply}</div></div>
   </article>`;
