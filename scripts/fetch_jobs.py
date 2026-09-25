@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 
 # HPPSC official website
-URL = "https://hppsc.hp.gov.in/"
+URL = "https://hppsc.hp.gov.in/Home/"
 
 OUTPUT_FILE = "data/jobs.json"
 
