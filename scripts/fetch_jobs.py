@@ -15,7 +15,7 @@ def fetch_jobs():
 
     response = requests.get(
         URL,
-        timeout=30,
+        timeout=90,
         headers={"User-Agent": "Mozilla/5.0"}
     )
     response.raise_for_status()
