@@ -117,9 +117,12 @@ def extract_pdf_text(pdf_url, job_id):
     pdf_path = PDF_DIR / f"{job_id}.pdf"
 
     try:
-        response = requests.get(
+        session = requests.Session()
+        session.mount("https://", LegacySSLAdapter())
+        session.headers.update({"User-Agent": "Mozilla/5.0"})
+
+        response = session.get(
             pdf_url,
-            headers={"User-Agent": "Mozilla/5.0"},
             timeout=120
         )
         response.raise_for_status()
