@@ -59,10 +59,32 @@ def download_page():
 
 
 def read_json(path):
-    if not path.exists():
+    if path.exists():
+        return json.loads(
+            path.read_text(encoding="utf-8-sig")
+        )
+
+    # Fallback: read existing jobs from jobs.js
+    jobs_js = Path("jobs.js")
+
+    if not jobs_js.exists():
+        print("WARNING: jobs.js not found!")
         return []
 
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    content = jobs_js.read_text(encoding="utf-8-sig")
+
+    match = re.search(
+        r"const\s+JOBS\s*=\s*(\[.*?\])\s*;",
+        content,
+        re.DOTALL
+    )
+
+    if not match:
+        raise ValueError(
+            "Could not read existing JOBS array from jobs.js"
+        )
+
+    return json.loads(match.group(1))
 
 
 def save_json(path, data):
