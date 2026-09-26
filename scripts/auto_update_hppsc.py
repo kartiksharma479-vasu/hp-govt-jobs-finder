@@ -286,9 +286,9 @@ def main():
 
         seen_urls.add(pdf_url)
 
-        if pdf_url in existing_by_url:
-            print("Already in jobs.json:", title)
-            continue
+        existing_job = existing_by_url.get(pdf_url)
+        if existing_job:
+            print("Rechecking existing job:", title)
 
         row_date = get_row_date(row)
 
@@ -329,11 +329,42 @@ def main():
             "publishedDate": row_date.isoformat()
         }
 
-        # Future deadline is a candidate, not proof of an open vacancy.
-        if deadline:
-            deadline_date = date.fromisoformat(deadline)
+        # Update existing job without creating duplicates.
+        if existing_job:
+            if qualification:
+                existing_job["qualification"] = qualification
 
-            if deadline_date >= TODAY:
+            if deadline:
+                existing_job["deadline"] = deadline
+
+            existing_job["reason"] = (
+                "Details rechecked from official notification."
+            )
+
+            existing_job["status"] = "review"
+
+            print("Existing job details refreshed:", title)
+
+        else:
+            # New jobs require a valid future deadline.
+            if deadline:
+                deadline_date = date.fromisoformat(deadline)
+
+                if deadline_date >= TODAY:
+                    new_candidates.append(job)
+                else:
+                    print("Closed deadline; skipped:", title)
+
+            else:
+                review_jobs.append({
+                    "post": title,
+                    "notificationUrl": pdf_url,
+                    "publishedDate": row_date.isoformat(),
+                    "reason": (
+                        "Deadline could not be extracted. "
+                        "Verify official notification."
+                    )
+                })
                 new_candidates.append(job)
             else:
                 print("Closed deadline; skipped:", title)
