@@ -656,6 +656,9 @@ def scan_hppsc():
 def scan_generic_source(source):
 
     source_url = source["url"]
+    source_name = source["name"]
+    source_type = source.get("type", "").lower()
+    keyword_filter = source.get("filter", "").strip().lower()
 
     response = fetch(source_url)
 
@@ -686,6 +689,15 @@ def scan_generic_source(source):
             title + " " + full_url
         ).lower()
 
+        # Only accept HTTP/HTTPS links.
+        if not full_url.startswith(("http://", "https://")):
+            continue
+
+        # Apply configured source filter.
+        if keyword_filter and keyword_filter not in combined:
+            continue
+
+        # Identify recruitment-related links.
         relevant = (
             ".pdf" in urlparse(full_url).path.lower()
             or any(
@@ -710,21 +722,25 @@ def scan_generic_source(source):
         if not relevant:
             continue
 
-        if not full_url.startswith(("http://", "https://")):
-            continue
-
         results.append({
             "title": title,
             "url": full_url,
-            "source": source["name"],
+            "source": source_name,
             "sourceUrl": source_url,
-            "publishedDate": ""
+            "publishedDate": "",
+            "sourceType": source_type
         })
 
     unique = {}
 
     for item in results:
         unique[normalize_url(item["url"])] = item
+
+    logging.info(
+        "%s: found %s relevant links",
+        source_name,
+        len(unique)
+    )
 
     return list(unique.values())
 
