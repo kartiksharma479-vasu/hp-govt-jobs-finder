@@ -1,5 +1,6 @@
-import ssl
+
 import requests
+import ssl
 import json
 import hashlib
 import subprocess
@@ -34,12 +35,14 @@ RECENT_DAYS = 90
 def download_page():
     TEMP_HTML.parent.mkdir(parents=True, exist_ok=True)
 
-    response = requests.get(
-        TABLE_URL,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=90
-    )
-    response.raise_for_status()
+    session = requests.Session()
+session.headers.update({"User-Agent": "Mozilla/5.0"})
+
+response = session.get(
+    TABLE_URL,
+    timeout=90
+)
+response.raise_for_status()
 
     TEMP_HTML.write_text(
         response.text,
