@@ -345,8 +345,22 @@ def main():
 
             print("Existing job details refreshed:", title)
 
+        # Update existing job without creating duplicates.
+        if existing_job:
+            if qualification:
+                existing_job["qualification"] = qualification
+
+            if deadline:
+                existing_job["deadline"] = deadline
+
+            existing_job["reason"] = (
+                "Details rechecked from official notification."
+            )
+            existing_job["status"] = "review"
+
+            print("Existing job details refreshed:", title)
+
         else:
-            # New jobs require a valid future deadline.
             if deadline:
                 deadline_date = date.fromisoformat(deadline)
 
@@ -365,16 +379,6 @@ def main():
                         "Verify official notification."
                     )
                 })
-                new_candidates.append(job)
-            else:
-                print("Closed deadline; skipped:", title)
-        else:
-            review_jobs.append({
-                "post": title,
-                "notificationUrl": pdf_url,
-                "publishedDate": row_date.isoformat(),
-                "reason": "Deadline could not be extracted. Verify notification."
-            })
 
     # Preserve every existing job, including non-HPPSC jobs.
     preview = existing.copy()
