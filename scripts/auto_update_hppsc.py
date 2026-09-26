@@ -117,7 +117,7 @@ def extract_pdf_text(pdf_url, job_id):
     pdf_path = PDF_DIR / f"{job_id}.pdf"
 
     result = subprocess.run([
-        "curl.exe", "-f", "-L",
+        "curl", "-f", "-L",
         "--max-time", "120",
         "-A", "Mozilla/5.0",
         "-o", str(pdf_path),
