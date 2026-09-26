@@ -42,13 +42,13 @@ def download_page():
 
     session = requests.Session()
     session.mount("https://", LegacySSLAdapter())
-session.headers.update({"User-Agent": "Mozilla/5.0"})
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
 
-response = session.get(
-    TABLE_URL,
-    timeout=90
-)
-response.raise_for_status()
+    response = session.get(
+        TABLE_URL,
+        timeout=90
+    )
+    response.raise_for_status()
 
     TEMP_HTML.write_text(
         response.text,
