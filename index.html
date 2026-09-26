@@ -21,6 +21,7 @@
         <button class="nav-item" data-page="eligible"><span>✓</span> Eligible Jobs <b class="nav-count" id="eligibleCount">0</b></button>
         <button class="nav-item" data-page="saved"><span>♡</span> Saved Jobs <b class="nav-count" id="savedCount">0</b></button>
         <button class="nav-item" data-page="noteligible"><span>⊘</span> Not Eligible</button>
+        <button class="nav-item" data-page="review"><span>ⓘ</span> Review Jobs</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-mini"><div class="avatar">U</div><div><strong id="sidebarName">Your Profile</strong><small>Set up your eligibility</small></div></div>
@@ -79,6 +80,31 @@
         <div class="page-heading"><div><p class="eyebrow">ELIGIBILITY CHECK</p><h1>Not eligible</h1><p class="muted">Listings that don't match the demo profile or need a closer review.</p></div></div>
         <div class="job-grid" id="notEligibleJobs"></div>
       </section>
+
+      <section class="page" id="page-review">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">VERIFICATION REQUIRED</p>
+      <h1>Review Jobs</h1>
+      <p class="muted">
+        Jobs whose eligibility or official details need verification.
+      </p>
+    </div>
+  </div>
+
+  <div class="notice">
+    <span>ⓘ</span>
+    <div>
+      <strong>Verification pending</strong>
+      <p>
+        Check the official notification before treating these jobs as eligible
+        or applying.
+      </p>
+    </div>
+  </div>
+
+  <div class="job-grid" id="reviewJobs"></div>
+</section>
 
       <section class="page" id="page-profile">
         <div class="page-heading"><div><p class="eyebrow">PERSONAL DETAILS</p><h1>My profile</h1><p class="muted">Add your details to preview personalized job matching.</p></div></div>
