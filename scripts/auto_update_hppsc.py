@@ -392,7 +392,7 @@ def main():
 
     save_json(PREVIEW_FILE, preview)
     save_json(REVIEW_FILE, review_jobs)
-    save_jobs_js(preview)
+    
 
     print("\nScan complete.")
     print("Existing jobs preserved:", len(existing))
