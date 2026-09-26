@@ -93,7 +93,15 @@ def save_json(path, data):
         json.dumps(data, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-
+def save_jobs_js(jobs):
+    path = Path("jobs.js")
+    content = (
+        "const JOBS = "
+        + json.dumps(jobs, ensure_ascii=False, indent=2)
+        + ";\n"
+    )
+    path.write_text(content, encoding="utf-8")
+    print("Live jobs.js updated:", len(jobs), "jobs")
 
 def parse_date(text):
     formats = [
@@ -353,6 +361,7 @@ def main():
 
     save_json(PREVIEW_FILE, preview)
     save_json(REVIEW_FILE, review_jobs)
+    save_jobs_js(preview)
 
     print("\nScan complete.")
     print("Existing jobs preserved:", len(existing))
