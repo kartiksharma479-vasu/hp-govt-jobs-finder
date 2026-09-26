@@ -370,7 +370,7 @@ def main():
     print("Preview saved:", PREVIEW_FILE)
     print("Review list saved:", REVIEW_FILE)
     print("Original jobs.json was NOT changed.")
-    print("jobs.js was NOT changed.")
+    print("jobs.js saved with", len(preview), "jobs.")
 
 
 if __name__ == "__main__":
