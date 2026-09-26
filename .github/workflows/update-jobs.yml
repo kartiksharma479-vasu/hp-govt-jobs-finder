@@ -1,17 +1,22 @@
-
-name: Update HPPSC Jobs
+name: Update HP Government Jobs
 
 on:
   schedule:
     - cron: "15 2 * * *"
+
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: update-hp-government-jobs
+  cancel-in-progress: false
+
 jobs:
   update-jobs:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -21,83 +26,106 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y tesseract-ocr
-          pip install pytesseract
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 pdfplumber
+          sudo apt-get install -y tesseract-ocr poppler-utils
 
-      - name: Test Standard DNS
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pdfplumber pytesseract pillow
+
+      - name: Verify dependencies
+        run: |
+          python -c "import requests, bs4, pdfplumber, pytesseract; print('Python dependencies OK')"
+          tesseract --version
+
+      - name: Check HPPSC DNS
         continue-on-error: true
         run: |
           python -c "import socket; print(socket.gethostbyname_ex('hppsc.hp.gov.in'))"
 
-      - name: Test HPPSC Alternate DNS
+      - name: Check alternate DNS
+        continue-on-error: true
         run: |
           python - <<'PY'
           import requests
 
           url = "https://cloudflare-dns.com/dns-query"
-          params = {
-              "name": "hppsc.hp.gov.in",
-              "type": "A"
-          }
-          headers = {
-              "accept": "application/dns-json"
-          }
 
           try:
               response = requests.get(
                   url,
-                  params=params,
-                  headers=headers,
+                  params={
+                      "name": "hppsc.hp.gov.in",
+                      "type": "A"
+                  },
+                  headers={
+                      "accept": "application/dns-json"
+                  },
                   timeout=20
               )
 
-              print("DNS response status:", response.status_code)
+              print("DNS status:", response.status_code)
               print(response.text)
 
-              response.raise_for_status()
-
-              data = response.json()
-
-              if data.get("Answer"):
-                  print("Alternate DNS lookup successful")
-              else:
-                  print("No DNS A records returned")
-
-          except Exception as e:
-              print("Alternate DNS test failed:", repr(e))
-              raise
+          except Exception as error:
+              print("Alternate DNS check failed:", repr(error))
           PY
 
-      - name: Test HPPSC HTTPS
-        continue-on-error: true
+      - name: Run jobs scanner
         run: |
-          python -c "import requests; print(requests.get('https://hppsc.hp.gov.in/', timeout=20).status_code)"
+          python scripts/auto_update_hppsc.py
 
-      - name: Fetch HPPSC advertisements
-        run: python scripts/auto_update_hppsc.py
-
-      - name: Check generated jobs files
+      - name: Validate generated files
         run: |
-          test -f data/jobs_preview.json
-          test -f data/jobs_review.json
-          echo "Preview and review files generated successfully"
+          python - <<'PY'
+          import json
+          from pathlib import Path
 
-      - name: Save updated jobs
+          required = [
+              Path("data/jobs.json"),
+              Path("data/jobs_preview.json"),
+              Path("data/jobs_review.json"),
+              Path("jobs.js")
+          ]
+
+          for path in required:
+              if not path.exists():
+                  raise SystemExit(f"Missing required file: {path}")
+
+              print(f"Found: {path}")
+
+          for path in required[:3]:
+              with path.open(encoding="utf-8") as file:
+                  json.load(file)
+
+              print(f"Valid JSON: {path}")
+
+          content = Path("jobs.js").read_text(encoding="utf-8")
+
+          if not content.startswith("const JOBS = "):
+              raise SystemExit("jobs.js does not contain expected JOBS declaration")
+
+          print("Generated files validated.")
+          PY
+
+      - name: Commit updated jobs data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/jobs_preview.json data/jobs_review.json
+          git add jobs.js
+          git add data/jobs.json
+          git add data/jobs_preview.json
+          git add data/jobs_review.json
 
           if git diff --cached --quiet; then
-            echo "No changes in jobs data"
+            echo "No changes to commit."
           else
-            git commit -m "Update HPPSC jobs"
+            git commit -m "Update HP government jobs data"
             git push
           fi
