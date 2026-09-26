@@ -1,4 +1,4 @@
-
+from requests.adapters import HTTPAdapter
 import requests
 import ssl
 import json
@@ -12,7 +12,12 @@ from urllib.parse import urljoin
 import pdfplumber
 import pytesseract
 from bs4 import BeautifulSoup
-
+class LegacySSLAdapter(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        context = ssl.create_default_context()
+        context.options |= 0x4
+        kwargs["ssl_context"] = context
+        return super().init_poolmanager(*args, **kwargs)
 BASE_URL = "https://hppsc.hp.gov.in"
 
 TABLE_URL = (
@@ -36,6 +41,7 @@ def download_page():
     TEMP_HTML.parent.mkdir(parents=True, exist_ok=True)
 
     session = requests.Session()
+    session.mount("https://", LegacySSLAdapter())
 session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 response = session.get(
