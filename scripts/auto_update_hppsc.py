@@ -291,11 +291,10 @@ def parse_jobs_js_array(array_text):
     except json.JSONDecodeError:
         pass
 
-    # The frontend's jobs.js uses unquoted object keys and trailing commas.
-    # Quote only bare keys at the start of object-property lines, then remove
-    # JavaScript-style trailing commas before closing braces/brackets.
+    # Quote bare property names wherever an object property begins.
+    # Handles indented properties and Windows line endings.
     normalized = re.sub(
-        r'(?m)^(\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:',
+        r'([{\[,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:',
         r'\1"\2":',
         array_text,
     )
