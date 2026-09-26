@@ -23,7 +23,7 @@ REVIEW_FILE = Path("data/jobs_review.json")
 TEMP_HTML = Path("data/hppsc_live.html")
 PDF_DIR = Path("data/hppsc_pdfs")
 
-TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+TESSERACT_PATH = "tesseract"
 
 TODAY = date.today()
 RECENT_DAYS = 90
@@ -32,16 +32,17 @@ RECENT_DAYS = 90
 def download_page():
     TEMP_HTML.parent.mkdir(parents=True, exist_ok=True)
 
-    result = subprocess.run([
-        "curl.exe", "-f", "-L",
-        "--max-time", "90",
-        "-A", "Mozilla/5.0",
-        "-o", str(TEMP_HTML),
-        TABLE_URL
-    ])
+    response = requests.get(
+        TABLE_URL,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=90
+    )
+    response.raise_for_status()
 
-    if result.returncode != 0:
-        raise Exception("HPPSC website download failed")
+    TEMP_HTML.write_text(
+        response.text,
+        encoding="utf-8"
+    )
 
     return TEMP_HTML.read_text(encoding="utf-8")
 
