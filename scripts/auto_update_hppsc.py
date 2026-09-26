@@ -155,23 +155,32 @@ def extract_pdf_text(pdf_url, job_id):
 
 
 def extract_deadline(text):
+    if not text:
+        return ""
+
+    # Normalize PDF line breaks and extra spaces
+    text = re.sub(r"\s+", " ", text)
+    text = text.replace("\u00a0", " ")
+
     date_pattern = (
         r"(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
         r"|\d{1,2}\s+(?:January|February|March|April|May|June|"
         r"July|August|September|October|November|December|"
-        r"Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)"
+        r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)"
         r"\s+\d{4}"
         r"|(?:January|February|March|April|May|June|July|August|"
         r"September|October|November|December|Jan|Feb|Mar|Apr|"
-        r"Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})"
+        r"May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)"
+        r"\s+\d{1,2},?\s+\d{4})"
     )
 
     patterns = [
-        r"(?is)(?:closing date for application|"
-        r"closing date for fee|"
-        r"last date for submission|last date for receipt|"
-        r"last date|closing date|deadline)"
-        r".{0,150}?" + date_pattern
+        r"(?is)(?:closing\s+date\s+for\s+application|"
+        r"closing\s+date\s+for\s+fee|"
+        r"last\s+date\s+for\s+submission|"
+        r"last\s+date\s+for\s+receipt|"
+        r"last\s+date|closing\s+date|deadline)"
+        r"[^.]{0,200}?" + date_pattern
     ]
 
     for pattern in patterns:
@@ -179,6 +188,7 @@ def extract_deadline(text):
 
         if match:
             parsed = parse_date(match.group(1))
+
             if parsed:
                 return parsed.isoformat()
 
