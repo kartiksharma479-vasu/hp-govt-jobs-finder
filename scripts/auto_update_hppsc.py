@@ -117,17 +117,17 @@ def extract_pdf_text(pdf_url, job_id):
     pdf_path = PDF_DIR / f"{job_id}.pdf"
 
     try:
-    response = requests.get(
-        pdf_url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=120
-    )
-    response.raise_for_status()
-    pdf_path.write_bytes(response.content)
+        response = requests.get(
+            pdf_url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=120
+        )
+        response.raise_for_status()
+        pdf_path.write_bytes(response.content)
 
-except Exception as e:
-    print("PDF download failed:", job_id, repr(e))
-    return ""
+    except Exception as e:
+        print("PDF download failed:", job_id, repr(e))
+        return ""
 
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
