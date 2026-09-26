@@ -82,15 +82,11 @@ jobs:
       - name: Fetch HPPSC advertisements
         run: python scripts/auto_update_hppsc.py
 
-      - name: Check generated jobs file
+      - name: Check generated jobs files
         run: |
-          if [ -f data/jobs.json ]; then
-            echo "jobs.json exists"
-            cat data/jobs.json
-          else
-            echo "ERROR: data/jobs.json was not generated"
-            exit 1
-          fi
+          test -f data/jobs_preview.json
+          test -f data/jobs_review.json
+          echo "Preview and review files generated successfully"
 
       - name: Save updated jobs
         run: |
