@@ -295,11 +295,11 @@ def parse_jobs_js_array(array_text):
     # Quote only bare keys at the start of object-property lines, then remove
     # JavaScript-style trailing commas before closing braces/brackets.
     normalized = re.sub(
-        r'(?m)^(\\s*)([A-Za-z_$][A-Za-z0-9_$]*)\\s*:',
-        r'\\1"\\2":',
+        r'(?m)^(\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:',
+        r'\1"\2":',
         array_text,
     )
-    normalized = re.sub(r',\\s*([}\\]])', r'\\1', normalized)
+    normalized = re.sub(r',\s*([}\]])', r'\1', normalized)
 
     try:
         parsed = json.loads(normalized)
