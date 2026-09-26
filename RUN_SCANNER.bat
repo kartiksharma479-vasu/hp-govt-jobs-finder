@@ -16,7 +16,7 @@ if not exist "jobs.js" (
 )
 
 echo Downloading latest fixed scanner from GitHub...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/kartiksharma479-vasu/hp-govt-jobs-finder/main/scripts/auto_update_hppsc.py' -OutFile 'scripts\auto_update_hppsc.py' -UseBasicParsing; exit 0 } catch { Write-Host $_; exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/kartiksharma479-vasu/hp-govt-jobs-finder/f214cb9ea042a53d9245f6a6a71f309a00a1a907/scripts/auto_update_hppsc.py' -OutFile 'scripts\auto_update_hppsc.py' -UseBasicParsing; exit 0 } catch { Write-Host $_; exit 1 }"
 if errorlevel 1 (
     echo ERROR: Scanner download failed. Internet connection check karo.
     pause
