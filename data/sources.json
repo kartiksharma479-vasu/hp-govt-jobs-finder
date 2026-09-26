@@ -1,0 +1,20 @@
+{
+  "sources": [
+    {
+      "name": "HPPSC",
+      "url": "https://hppsc.hp.gov.in/Home/HomeWhatsNew",
+      "type": "hppsc"
+    },
+    {
+      "name": "HPRCA",
+      "url": "https://hprca.hp.gov.in/",
+      "type": "hprca"
+    },
+    {
+      "name": "HP Police",
+      "url": "https://hppsc.hp.gov.in/Home/HomeWhatsNew",
+      "type": "hppolice",
+      "filter": "Police"
+    }
+  ]
+}
