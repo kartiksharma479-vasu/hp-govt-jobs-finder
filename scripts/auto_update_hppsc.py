@@ -285,7 +285,7 @@ def load_existing_jobs():
 
     jobs_from_json = None
 
-    # First preference: data/jobs.json
+    # First preference: data/jobs.json. A missing file is normal on first run.
     if JOBS_FILE.exists():
         try:
             data = read_json(JOBS_FILE, None)
@@ -297,11 +297,10 @@ def load_existing_jobs():
                 jobs_from_json = data.get("jobs")
 
             if not isinstance(jobs_from_json, list):
-                logging.warning(
-                    "jobs.json has an invalid structure. "
-                    "Trying jobs.js instead."
+                raise ValueError(
+                    "jobs.json exists but has an invalid structure. "
+                    "Fix or restore it before scanning; refusing to overwrite."
                 )
-                jobs_from_json = None
 
         except Exception as error:
             logging.warning(
@@ -377,17 +376,21 @@ def load_existing_jobs():
     for job in jobs_from_json:
 
         if not isinstance(job, dict):
-            logging.warning(
-                "Skipping invalid job record."
+            raise ValueError(
+                "Existing database contains a non-object job record. "
+                "Refusing to proceed to prevent data loss."
             )
-            continue
 
         if not job.get("id"):
-            logging.warning(
-                "Skipping job without an ID: %s",
-                job.get("post", "Unknown post")
-            )
-            continue
+            # Stable fallback ID preserves manually entered records.
+            fallback = job_url(job) or clean_text(job.get("post", ""))
+            if not fallback:
+                raise ValueError(
+                    "Existing job has neither ID, URL nor post title. "
+                    "Refusing to discard it."
+                )
+            job = dict(job)
+            job["id"] = "preserved-" + make_id(fallback)
 
         valid_jobs.append(job)
 
@@ -1189,11 +1192,13 @@ def main():
     existing = load_existing_jobs()
 
     existing_by_url = {}
+    existing_without_url = []
 
     for job in existing:
         url = job_url(job)
 
         if not url:
+            existing_without_url.append(job)
             continue
 
         if url not in existing_by_url:
@@ -1214,6 +1219,7 @@ def main():
             logging.warning("Duplicate existing job URL found; merged by retaining verified record: %s", url)
 
     discovered = {}
+    scan_errors = []
 
     # Always scan HPPSC using its known table.
     try:
@@ -1223,6 +1229,7 @@ def main():
             ] = link
 
     except Exception as error:
+        scan_errors.append("HPPSC")
         logging.exception(
             "HPPSC scan failed: %s",
             error
@@ -1247,10 +1254,17 @@ def main():
                     discovered[url] = link
 
         except Exception as error:
+            scan_errors.append(name)
             logging.exception(
                 "Source scan failed: %s",
                 name
             )
+
+    if scan_errors:
+        raise RuntimeError(
+            "One or more configured sources failed (" + ", ".join(scan_errors) +
+            "). No database files were changed. Fix the source/network issue and rerun."
+        )
 
     logging.info(
         "Unique notifications discovered: %s",
@@ -1429,6 +1443,15 @@ def main():
                 )
             })
 
+    # Preserve manually maintained legacy records that have no URL.
+    # They cannot be matched to a source reliably, so keep them in review.
+    for legacy_job in existing_without_url:
+        legacy_copy = dict(legacy_job)
+        legacy_copy.setdefault("status", "review")
+        legacy_copy.setdefault("verificationStatus", "review")
+        legacy_copy.setdefault("reason", "Preserved existing record without a valid notification URL; verify manually.")
+        review_jobs.append(legacy_copy)
+
     # Back up all current outputs before replacing any of them. If a backup
     # fails, the run stops before modifying the persisted databases.
     for output_path in (JOBS_FILE, JOBS_JS_FILE, PREVIEW_FILE, REVIEW_FILE):
@@ -1576,11 +1599,44 @@ def main():
     # SAVE LIVE JOBS
     # --------------------------------------------------------
 
-    save_json(
-        JOBS_FILE,
-        live_jobs
-    )
+    # Canonical jobs.json contains all records from live, preview and review.
+    # jobs.js remains the front-end LIVE/verified-only feed.
+    canonical_by_key = {}
 
+    def canonical_key(record):
+        url_key = job_url(record)
+        if url_key:
+            return "url:" + url_key
+        return "id:" + str(record.get("id", ""))
+
+    for bucket in (
+        live_jobs,
+        list(preview_by_url.values()),
+        list(review_by_url.values()),
+    ):
+        for record in bucket:
+            if not isinstance(record, dict):
+                continue
+            key = canonical_key(record)
+            if key and key not in ("id:",):
+                current = canonical_by_key.get(key)
+                if current is None:
+                    canonical_by_key[key] = record
+                else:
+                    # Preserve manually verified fields if duplicate bucket entries exist.
+                    if (
+                        record.get("verificationStatus") == "verified"
+                        and record.get("applyVerified") is True
+                    ):
+                        canonical_by_key[key] = record
+
+    # Include URL-less preserved records too.
+    for record in existing_without_url:
+        key = canonical_key(record)
+        if key != "id:":
+            canonical_by_key.setdefault(key, record)
+
+    save_json(JOBS_FILE, list(canonical_by_key.values()))
     save_jobs_js(live_jobs)
 
     logging.info("----------------------------------")
