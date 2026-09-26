@@ -7,14 +7,14 @@
     },
     {
       "name": "HPRCA",
-      "url": "https://hprca.hp.gov.in/",
+      "url": "https://hprca.hp.gov.in/latest-notifications",
       "type": "hprca"
     },
     {
       "name": "HP Police",
-      "url": "https://hppsc.hp.gov.in/Home/HomeWhatsNew",
+      "url": "https://citizenportal.hppolice.gov.in/citizen/viewnotbrfile.htm",
       "type": "hppolice",
-      "filter": "Police"
+      "filter": "recruitment"
     }
   ]
 }
