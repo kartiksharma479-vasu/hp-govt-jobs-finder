@@ -83,6 +83,10 @@ SESSION = create_session()
 
 
 def fetch(url, timeout=60):
+    if not is_http_url(url):
+        logging.warning("Skipping invalid request URL: %r", url)
+        return None
+
     try:
         response = SESSION.get(url, timeout=timeout)
         response.raise_for_status()
@@ -101,9 +105,8 @@ def fetch(url, timeout=60):
 
 def read_json(path, default=None):
 
-    if default is None:
-        default = []
-
+    # Keep None as None: callers use it to detect missing/corrupt files
+    # and safely fall back to another database source.
     if not path.exists():
         return default
 
@@ -134,6 +137,18 @@ def save_json(path, data):
     temp_path.replace(path)
 
 
+def backup_file(path):
+    """Create a timestamped backup before replacing an existing data file."""
+    try:
+        if path.exists() and path.is_file():
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            backup = path.with_name(f"{path.name}.{stamp}.bak")
+            backup.write_bytes(path.read_bytes())
+            logging.info("Backup created: %s", backup)
+    except OSError as error:
+        raise RuntimeError(f"Could not back up {path}: {error}") from error
+
+
 def clean_text(value):
 
     if not value:
@@ -147,11 +162,27 @@ def clean_text(value):
 
 
 def normalize_url(url):
+    """Normalize a URL safely without raising on malformed values."""
+    if not isinstance(url, str):
+        return ""
+    return url.strip().rstrip("/")
 
-    return (url or "").strip().rstrip("/")
+
+def is_http_url(value):
+    """Return True only for absolute HTTP(S) URLs with a host."""
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = urlparse(value.strip())
+        return parsed.scheme.lower() in ("http", "https") and bool(parsed.netloc)
+    except (TypeError, ValueError):
+        return False
 
 
 def job_url(job):
+    # Old preview/review files may contain malformed non-object rows.
+    if not isinstance(job, dict):
+        return ""
 
     raw_url = str(
         job.get("notificationUrl")
@@ -168,6 +199,9 @@ def job_url(job):
 
     if markdown_match:
         raw_url = markdown_match.group(1)
+
+    if not is_http_url(raw_url):
+        return ""
 
     return normalize_url(raw_url)
 
@@ -190,6 +224,10 @@ def load_sources():
     if isinstance(raw, dict):
         raw = raw.get("sources", [])
 
+    if not isinstance(raw, list):
+        logging.warning("sources.json must contain a list or a {sources: [...]} object")
+        raw = []
+
     sources = []
 
     for source in raw:
@@ -197,24 +235,30 @@ def load_sources():
         if not isinstance(source, dict):
             continue
 
-        url = (
-            source.get("url")
-            or source.get("website")
-            or ""
-        )
-
-        if not url:
-            continue
-
-        source = dict(source)
-        source["url"] = url.strip()
-
-        source["name"] = (
+        url = source.get("url") or source.get("website") or ""
+        name = (
             source.get("name")
             or source.get("source")
             or source.get("organization")
             or "HP Government"
         )
+
+        if not isinstance(url, str) or not is_http_url(url.strip()):
+            logging.warning("Skipping source with invalid HTTP(S) URL: %r", url)
+            continue
+
+        if not isinstance(name, str):
+            name = str(name)
+
+        source = dict(source)
+        source["url"] = url.strip()
+        source["name"] = clean_text(name) or "HP Government"
+
+        source_type = source.get("type", "")
+        source["type"] = source_type.strip().lower() if isinstance(source_type, str) else ""
+
+        keyword_filter = source.get("filter", "")
+        source["filter"] = keyword_filter.strip().lower() if isinstance(keyword_filter, str) else ""
 
         sources.append(source)
 
@@ -239,34 +283,120 @@ def load_sources():
 
 def load_existing_jobs():
 
+    jobs_from_json = None
+
+    # First preference: data/jobs.json
     if JOBS_FILE.exists():
+        try:
+            data = read_json(JOBS_FILE, None)
 
-        data = read_json(JOBS_FILE, [])
+            if isinstance(data, list):
+                jobs_from_json = data
 
-        if isinstance(data, list):
-            return data
+            elif isinstance(data, dict):
+                jobs_from_json = data.get("jobs")
 
-        if isinstance(data, dict):
-            return data.get("jobs", [])
+            if not isinstance(jobs_from_json, list):
+                logging.warning(
+                    "jobs.json has an invalid structure. "
+                    "Trying jobs.js instead."
+                )
+                jobs_from_json = None
 
-    if not JOBS_JS_FILE.exists():
-        logging.warning("jobs.js not found.")
-        return []
+        except Exception as error:
+            logging.warning(
+                "Could not load jobs.json: %s",
+                error
+            )
 
-    content = JOBS_JS_FILE.read_text(encoding="utf-8-sig")
+    # Fallback: preserve jobs already present in jobs.js
+    if jobs_from_json is None:
 
-    match = re.search(
-        r"const\s+JOBS\s*=\s*(\[.*?\])\s*;",
-        content,
-        re.DOTALL
-    )
+        if not JOBS_JS_FILE.exists():
+            raise FileNotFoundError(
+                "Neither a valid jobs.json nor jobs.js exists. "
+                "Refusing to overwrite the existing job database."
+            )
 
-    if not match:
-        raise ValueError(
-            "Cannot find const JOBS array in jobs.js"
+        content = JOBS_JS_FILE.read_text(
+            encoding="utf-8-sig"
         )
 
-    return json.loads(match.group(1))
+        match = re.search(
+            r"const\s+JOBS\s*=\s*(\[.*\])\s*;",
+            content,
+            re.DOTALL
+        )
+
+        if not match:
+            raise ValueError(
+                "Could not safely read JOBS array from jobs.js. "
+                "Refusing to overwrite existing jobs."
+            )
+
+        try:
+            jobs_from_json = json.loads(match.group(1))
+
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                "jobs.js contains invalid JSON. "
+                "No existing jobs will be overwritten."
+            ) from error
+
+    # Validate every record before returning.
+    if not isinstance(jobs_from_json, list):
+        raise ValueError(
+            "Existing jobs database is not a list."
+        )
+
+    # An empty primary database can be legitimate for a first-time install,
+    # but must not silently replace a populated jobs.js database.
+    if not jobs_from_json and JOBS_FILE.exists() and JOBS_JS_FILE.exists():
+        try:
+            js_content = JOBS_JS_FILE.read_text(encoding="utf-8-sig")
+            js_match = re.search(
+                r"const\s+JOBS\s*=\s*(\[.*\])\s*;",
+                js_content,
+                re.DOTALL,
+            )
+            if js_match:
+                js_jobs = json.loads(js_match.group(1))
+                if isinstance(js_jobs, list) and js_jobs:
+                    raise ValueError(
+                        "jobs.json is empty but jobs.js contains records. "
+                        "Refusing to proceed to protect the existing database."
+                    )
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                "Could not validate jobs.js while jobs.json is empty; "
+                "refusing to proceed."
+            ) from error
+
+    valid_jobs = []
+
+    for job in jobs_from_json:
+
+        if not isinstance(job, dict):
+            logging.warning(
+                "Skipping invalid job record."
+            )
+            continue
+
+        if not job.get("id"):
+            logging.warning(
+                "Skipping job without an ID: %s",
+                job.get("post", "Unknown post")
+            )
+            continue
+
+        valid_jobs.append(job)
+
+    logging.info(
+        "Existing jobs safely loaded: %s",
+        len(valid_jobs)
+    )
+
+    return valid_jobs
 
 
 def save_jobs_js(jobs):
@@ -281,10 +411,10 @@ def save_jobs_js(jobs):
         + ";\n"
     )
 
-    JOBS_JS_FILE.write_text(
-        content,
-        encoding="utf-8"
-    )
+    JOBS_JS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = JOBS_JS_FILE.with_suffix(JOBS_JS_FILE.suffix + ".tmp")
+    temp_path.write_text(content, encoding="utf-8")
+    temp_path.replace(JOBS_JS_FILE)
 
     logging.info("jobs.js saved: %s jobs", len(jobs))
 
@@ -333,6 +463,22 @@ def parse_date(value):
             pass
 
     return None
+
+
+def normalize_deadline(value):
+    """Return ISO date for a parseable deadline, otherwise empty string."""
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value.isoformat()
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    if not value:
+        return ""
+    try:
+        return date.fromisoformat(value[:10]).isoformat()
+    except ValueError:
+        parsed = parse_date(value)
+        return parsed.isoformat() if parsed else ""
 
 
 def extract_deadline(text):
@@ -415,12 +561,37 @@ def extract_pdf_text(pdf_url, job_id):
 
     try:
 
-        response = fetch(pdf_url, timeout=120)
+        response = fetch(
+            pdf_url,
+            timeout=120
+        )
 
         if not response:
             return ""
 
-        pdf_path.write_bytes(response.content)
+        content = response.content
+
+        # Reject empty responses.
+        if not content:
+            logging.warning(
+                "Empty PDF response: %s",
+                pdf_url
+            )
+            return ""
+
+        # Validate the actual PDF file signature.
+        if b"%PDF-" not in content[:1024]:
+            logging.warning(
+                "Invalid PDF content received: %s",
+                pdf_url
+            )
+            return ""
+
+        # Content-Type is not authoritative: some official portals serve
+        # genuine PDF files as application/octet-stream or text/plain.
+        # The PDF signature check above is the deciding validation.
+        # Save only after basic validation.
+        pdf_path.write_bytes(content)
 
     except Exception as error:
 
@@ -432,7 +603,9 @@ def extract_pdf_text(pdf_url, job_id):
 
         return ""
 
-    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+    pytesseract.pytesseract.tesseract_cmd = (
+        TESSERACT_PATH
+    )
 
     pages_text = []
 
@@ -440,10 +613,18 @@ def extract_pdf_text(pdf_url, job_id):
 
         with pdfplumber.open(pdf_path) as pdf:
 
+            if not pdf.pages:
+                logging.warning(
+                    "PDF contains no pages: %s",
+                    pdf_url
+                )
+                return ""
+
             for page in pdf.pages:
 
                 text = page.extract_text() or ""
 
+                # Use OCR for scanned or image-based pages.
                 if len(text.strip()) < 40:
 
                     try:
@@ -452,14 +633,20 @@ def extract_pdf_text(pdf_url, job_id):
                             resolution=200
                         ).original
 
-                        text = pytesseract.image_to_string(
-                            image
+                        ocr_text = (
+                            pytesseract.image_to_string(
+                                image
+                            )
                         )
+
+                        if ocr_text.strip():
+                            text = ocr_text
 
                     except Exception as error:
 
                         logging.warning(
-                            "OCR warning: %s",
+                            "OCR warning: %s | %s",
+                            pdf_url,
                             error
                         )
 
@@ -473,50 +660,19 @@ def extract_pdf_text(pdf_url, job_id):
             error
         )
 
+        # Remove corrupt or unreadable downloaded file.
+        try:
+            pdf_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
         return ""
 
     return "\n".join(pages_text)
 
-
 # ============================================================
 # QUALIFICATION EXTRACTION
 # ============================================================
-
-def extract_qualification(text):
-
-    if not text:
-        return ""
-
-    pattern = (
-        r"(?is)"
-        r"(essential qualifications?.*?)"
-        r"(?=\n\s*(?:desirable qualifications?|"
-        r"age limit|application fee|how to apply|"
-        r"closing date|last date|important instructions)"
-        r"\b)"
-    )
-
-    match = re.search(pattern, text)
-
-    if match:
-        return clean_text(match.group(1))[:12000]
-
-    # Alternative wording used in some notifications.
-    pattern = (
-        r"(?is)"
-        r"(educational qualifications?.*?)"
-        r"(?=\n\s*(?:age limit|application fee|"
-        r"how to apply|closing date|last date)"
-        r"\b)"
-    )
-
-    match = re.search(pattern, text)
-
-    if match:
-        return clean_text(match.group(1))[:12000]
-
-    return ""
-
 
 def extract_qualification(text):
 
@@ -532,11 +688,11 @@ def extract_qualification(text):
     )
 
     headings = [
+        r"essential educational qualifications?",
         r"essential qualifications?",
         r"educational qualifications?",
         r"minimum qualifications?",
-        r"eligibility criteria",
-        r"essential educational qualifications?"
+        r"eligibility criteria"
     ]
 
     end_headings = (
@@ -646,14 +802,12 @@ def scan_hppsc():
 
         if not row_date:
             logging.info(
-                "No publication date found: %s",
+                "No publication date found; retaining notification for review: %s",
                 title
             )
-            continue
 
-        if row_date < cutoff:
-            continue
-
+        # Do not discard older advertisements solely by publication date:
+        # a notification may still be open or have an extended deadline.
         links.append({
             "title": title,
             "url": pdf_url,
@@ -673,8 +827,10 @@ def scan_generic_source(source):
 
     source_url = source["url"]
     source_name = source["name"]
-    source_type = source.get("type", "").lower()
-    keyword_filter = source.get("filter", "").strip().lower()
+    source_type = source.get("type", "")
+    source_type = source_type.lower() if isinstance(source_type, str) else ""
+    keyword_filter = source.get("filter", "")
+    keyword_filter = keyword_filter.strip().lower() if isinstance(keyword_filter, str) else ""
 
     response = fetch(source_url)
 
@@ -844,7 +1000,8 @@ def build_job(link):
 
     url = normalize_url(raw_url)
 
-    if not url.startswith(("http://", "https://")):
+    if not is_http_url(url):
+        logging.warning("Skipping invalid notification URL: %r", raw_url)
         return None
 
     job_id = "job-" + make_id(url)
@@ -925,17 +1082,20 @@ def build_job(link):
 # MERGE EXISTING JOBS SAFELY
 # ============================================================
 
+
 def merge_existing(existing, new):
+    """
+    Merge scanned data while preserving manual verification.
+    New records remain unverified until manually approved.
+    """
+
+    existing = existing if isinstance(existing, dict) else {}
+    new = new if isinstance(new, dict) else {}
 
     merged = dict(existing)
 
-    if not isinstance(new, dict):
-        merged["lastChecked"] = TODAY.isoformat()
-        return merged
-
-    # Preserve all existing non-empty values.
-    # Only fill fields that are currently empty.
-    fields = [
+    # Refresh fields extracted from official sources.
+    refresh_fields = [
         "post",
         "department",
         "source",
@@ -947,21 +1107,71 @@ def merge_existing(existing, new):
         "vacancies",
         "publishedDate",
         "notificationUrl",
-        "applyUrl"
     ]
 
-    for field in fields:
+    was_manually_verified = (
+        existing.get("verificationStatus") == "verified"
+        and existing.get("applyVerified") is True
+    )
 
-        old_value = existing.get(field)
-        new_value = new.get(field)
+    # Fields manually confirmed on a verified record are not overwritten by
+    # automatic extraction. Store fresh extraction separately for comparison.
+    protected_verified_fields = {
+        "post", "department", "source", "qualification", "subject",
+        "criteria", "deadline", "ageLimit", "vacancies", "publishedDate",
+        "notificationUrl",
+    }
 
-        if (
-            new_value
-            and not old_value
-        ):
-            merged[field] = new_value
+    for field in refresh_fields:
+        value = new.get(field)
+        if value in (None, "", [], {}):
+            continue
+        if was_manually_verified and field in protected_verified_fields:
+            if existing.get(field) not in (None, "", [], {}):
+                if str(existing.get(field)).strip() != str(value).strip():
+                    merged.setdefault("scannerChanges", {})[field] = value
+                continue
+        merged[field] = value
 
-    # Preserve manually verified status and reason.
+    # Preserve manually verified information and user-entered notes.
+    manual_fields = [
+        "verificationStatus", "applyVerified", "applyUrl", "verifiedBy",
+        "verifiedAt", "manualNotes",
+    ]
+
+    for field in manual_fields:
+        if field in existing:
+            merged[field] = existing[field]
+
+    # New records must never become verified automatically.
+    if not existing:
+        merged["verificationStatus"] = "review"
+        merged["applyVerified"] = False
+        merged["applyUrl"] = ""
+        merged["status"] = "review"
+
+    # Never downgrade manually verified records during automated refresh.
+    if merged.get("verificationStatus") == "verified":
+        merged["status"] = existing.get("status", "active")
+        if existing.get("reason"):
+            merged["reason"] = existing["reason"]
+    else:
+        merged["status"] = "review"
+        if new.get("reason"):
+            merged["reason"] = new["reason"]
+
+    # Preserve original ID whenever available.
+    merged["id"] = (
+        existing.get("id")
+        or new.get("id")
+        or ""
+    )
+
+    # Unverified records remain under review.
+    if merged.get("verificationStatus") != "verified":
+        merged["status"] = "review"
+
+    # Update last checked date.
     merged["lastChecked"] = TODAY.isoformat()
 
     return merged
@@ -976,38 +1186,49 @@ def main():
     logging.info("HP Government Jobs scanner started")
 
     sources = load_sources()
-
     existing = load_existing_jobs()
 
     existing_by_url = {}
 
     for job in existing:
-
         url = job_url(job)
 
-        if url:
+        if not url:
+            continue
+
+        if url not in existing_by_url:
             existing_by_url[url] = job
+        else:
+            # Preserve manually verified record if duplicate URLs exist.
+            current = existing_by_url[url]
+            current_verified = (
+                current.get("verificationStatus") == "verified"
+                and current.get("applyVerified") is True
+            )
+            incoming_verified = (
+                job.get("verificationStatus") == "verified"
+                and job.get("applyVerified") is True
+            )
+            if incoming_verified and not current_verified:
+                existing_by_url[url] = job
+            logging.warning("Duplicate existing job URL found; merged by retaining verified record: %s", url)
 
     discovered = {}
 
     # Always scan HPPSC using its known table.
     try:
-
         for link in scan_hppsc():
-
             discovered[
                 normalize_url(link["url"])
             ] = link
 
     except Exception as error:
-
         logging.exception(
             "HPPSC scan failed: %s",
             error
         )
 
-    # Scan configured sources, including HPRCA and other
-    # sources supplied through sources.json.
+    # Scan configured sources, including HPRCA.
     for source in sources:
 
         name = source["name"]
@@ -1018,7 +1239,6 @@ def main():
         logging.info("Scanning source: %s", name)
 
         try:
-
             for link in scan_generic_source(source):
 
                 url = normalize_url(link["url"])
@@ -1027,7 +1247,6 @@ def main():
                     discovered[url] = link
 
         except Exception as error:
-
             logging.exception(
                 "Source scan failed: %s",
                 name
@@ -1038,22 +1257,28 @@ def main():
         len(discovered)
     )
 
+    if not discovered and existing:
+        raise RuntimeError(
+            "No notifications were discovered from any source while existing jobs exist. "
+            "This may be a network/source outage; refusing to rewrite the databases."
+        )
+
     live_jobs = []
     new_candidates = []
     review_jobs = []
 
     seen = set()
 
-    # Process existing jobs first.
+    # --------------------------------------------------------
+    # PROCESS EXISTING JOBS
+    # --------------------------------------------------------
+
     for url, job in existing_by_url.items():
 
         if url in discovered:
 
             try:
-
-                refreshed = build_job(
-                    discovered[url]
-                )
+                refreshed = build_job(discovered[url])
 
                 job = merge_existing(
                     job,
@@ -1066,53 +1291,120 @@ def main():
                 )
 
             except Exception as error:
-
                 logging.warning(
                     "Existing job refresh failed: %s | %s",
                     url,
                     error
                 )
 
-        live_jobs.append(job)
+        deadline = normalize_deadline(job.get("deadline", ""))
+        if deadline:
+            job["deadline"] = deadline
+            try:
+                deadline_date = date.fromisoformat(deadline)
+                if deadline_date < TODAY:
+                    logging.info("Expired job excluded: %s", job.get("post", url))
+                    seen.add(url)
+                    continue
+            except (ValueError, TypeError):
+                deadline = ""
+
+        # Only a confirmed expired deadline removes a listing from Live.
+        # Missing/invalid dates must not silently demote a manually verified job.
+        apply_url = job.get("applyUrl")
+        is_verified = (
+            job.get("verificationStatus") == "verified"
+            and job.get("applyVerified") is True
+            and is_http_url(apply_url)
+        )
+
+        if is_verified:
+            if not deadline:
+                job["deadlineNeedsReview"] = True
+                job["deadlineReviewNote"] = (
+                    "Deadline is missing or invalid; verify the official notice."
+                )
+            live_jobs.append(job)
+        else:
+            if not deadline:
+                job["reason"] = clean_text(job.get("reason", ""))
+                if "deadline" not in job["reason"].lower():
+                    job["reason"] = (job["reason"] + " Deadline missing or invalid; verify official notice.").strip()
+            logging.info("Unverified job kept out of live database: %s", job.get("post", url))
+            review_jobs.append(job)
+
         seen.add(url)
 
-    # Process newly discovered notifications.
+    # --------------------------------------------------------
+    # PROCESS NEWLY DISCOVERED NOTIFICATIONS
+    # --------------------------------------------------------
+
     for url, link in discovered.items():
 
         if url in seen:
             continue
 
         try:
-
             candidate = build_job(link)
 
             if not candidate:
+
                 logging.warning(
                     "Invalid notification skipped: %s",
                     url
                 )
+
                 continue
 
             deadline = candidate.get("deadline", "")
 
-            if deadline:
+            if not deadline:
 
-                deadline_date = date.fromisoformat(deadline)
+                candidate["status"] = "review"
+                candidate["verificationStatus"] = "review"
 
-                if deadline_date >= TODAY:
-
-                    new_candidates.append(candidate)
-
-                else:
-
-                    logging.info(
-                        "Closed notification skipped: %s",
-                        candidate.get("post")
-                    )
-
-            else:
+                candidate["reason"] = (
+                    "Deadline not extracted. "
+                    "Verify the official notification."
+                )
 
                 review_jobs.append(candidate)
+                continue
+
+            try:
+                deadline_date = date.fromisoformat(
+                    deadline
+                )
+
+            except (ValueError, TypeError):
+
+                candidate["status"] = "review"
+                candidate["verificationStatus"] = "review"
+
+                candidate["reason"] = (
+                    "Invalid deadline format. "
+                    "Verify the official notification."
+                )
+
+                review_jobs.append(candidate)
+                continue
+
+            if deadline_date < TODAY:
+
+                logging.info(
+                    "Closed notification skipped: %s",
+                    candidate.get("post")
+                )
+
+                continue
+
+            # New notifications always require manual review.
+            candidate["status"] = "review"
+            candidate["verificationStatus"] = "review"
+            candidate["applyVerified"] = False
+            candidate["applyUrl"] = ""
+
+            new_candidates.append(candidate)
 
         except Exception as error:
 
@@ -1123,14 +1415,29 @@ def main():
             )
 
             review_jobs.append({
+                "id": url,
                 "post": link.get("title", ""),
                 "source": link.get("source", ""),
                 "notificationUrl": url,
+                "deadline": "",
                 "status": "review",
-                "reason": "Scanner encountered an extraction error."
+                "verificationStatus": "review",
+                "applyVerified": False,
+                "applyUrl": "",
+                "reason": (
+                    "Scanner encountered an extraction error."
+                )
             })
 
-    # Preserve existing preview entries, avoiding duplicates.
+    # Back up all current outputs before replacing any of them. If a backup
+    # fails, the run stops before modifying the persisted databases.
+    for output_path in (JOBS_FILE, JOBS_JS_FILE, PREVIEW_FILE, REVIEW_FILE):
+        backup_file(output_path)
+
+    # --------------------------------------------------------
+    # PRESERVE AND UPDATE PREVIEW ENTRIES
+    # --------------------------------------------------------
+
     old_preview = read_json(
         PREVIEW_FILE,
         []
@@ -1141,13 +1448,16 @@ def main():
     if isinstance(old_preview, list):
 
         for job in old_preview:
+            if not isinstance(job, dict):
+                logging.warning("Skipping malformed preview record.")
+                continue
 
             url = job_url(job)
 
             if url:
                 preview_by_url[url] = job
 
-    # Add new candidates without overwriting existing details.
+    # Add new candidates without overwriting manual details.
     for job in new_candidates:
 
         url = job_url(job)
@@ -1159,13 +1469,44 @@ def main():
                 job
             )
 
-    # Do not add new candidates to live jobs.
+    # Remove preview entries that have expired or are now live.
+    live_urls = {job_url(job) for job in live_jobs if job_url(job)}
+    for old_url, old_job in list(preview_by_url.items()):
+        old_deadline = old_job.get("deadline", "")
+        if old_url in live_urls:
+            preview_by_url.pop(old_url, None)
+            continue
+        if old_deadline:
+            try:
+                if date.fromisoformat(old_deadline) < TODAY:
+                    preview_by_url.pop(old_url, None)
+            except (ValueError, TypeError):
+                pass
+
+    # A URL currently routed to review must not also remain in preview.
+    current_review_urls = {
+        job_url(job) for job in review_jobs
+        if isinstance(job, dict) and job_url(job)
+    }
+    for review_url in current_review_urls:
+        preview_by_url.pop(review_url, None)
+
+    # Reconcile all buckets globally, including stale entries not rediscovered
+    # in this scan. Live wins over review, and review wins over preview.
+    current_live_urls = {job_url(job) for job in live_jobs if job_url(job)}
+    for bucket_url in current_live_urls:
+        preview_by_url.pop(bucket_url, None)
+
+    # Candidates remain separate from live/review jobs.
     save_json(
         PREVIEW_FILE,
         list(preview_by_url.values())
     )
 
-    # Preserve old review jobs and avoid duplicates.
+    # --------------------------------------------------------
+    # PRESERVE AND UPDATE REVIEW ENTRIES
+    # --------------------------------------------------------
+
     old_review = read_json(
         REVIEW_FILE,
         []
@@ -1176,13 +1517,16 @@ def main():
     if isinstance(old_review, list):
 
         for job in old_review:
+            if not isinstance(job, dict):
+                logging.warning("Skipping malformed review record.")
+                continue
 
             url = job_url(job)
 
             if url:
                 review_by_url[url] = job
 
-    # Add new review jobs without overwriting existing details.
+    # Add review jobs without overwriting existing details.
     for job in review_jobs:
 
         url = job_url(job)
@@ -1194,12 +1538,44 @@ def main():
                 job
             )
 
+    # Remove expired review records and records already promoted to live.
+    live_urls = {job_url(job) for job in live_jobs if job_url(job)}
+    for old_url, old_job in list(review_by_url.items()):
+        if old_url in live_urls:
+            review_by_url.pop(old_url, None)
+            continue
+        old_deadline = old_job.get("deadline", "")
+        if old_deadline:
+            try:
+                if date.fromisoformat(old_deadline) < TODAY:
+                    review_by_url.pop(old_url, None)
+            except (ValueError, TypeError):
+                pass
+
+    # A URL currently routed to preview must not also remain in review.
+    current_preview_urls = {
+        job_url(job) for job in new_candidates
+        if isinstance(job, dict) and job_url(job)
+    }
+    for preview_url in current_preview_urls:
+        review_by_url.pop(preview_url, None)
+
+    # Live and preview are mutually exclusive with Review across the full
+    # persisted buckets, not merely records discovered during this run.
+    all_live_urls = {job_url(job) for job in live_jobs if job_url(job)}
+    all_preview_urls = {job_url(job) for job in preview_by_url.values() if job_url(job)}
+    for bucket_url in all_live_urls | all_preview_urls:
+        review_by_url.pop(bucket_url, None)
+
     save_json(
         REVIEW_FILE,
         list(review_by_url.values())
     )
 
-    # Save live jobs separately.
+    # --------------------------------------------------------
+    # SAVE LIVE JOBS
+    # --------------------------------------------------------
+
     save_json(
         JOBS_FILE,
         live_jobs
