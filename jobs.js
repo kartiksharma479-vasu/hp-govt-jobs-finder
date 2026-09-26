@@ -1,77 +1,97 @@
 const JOBS = [
   {
-    "id": "hppsc-63-9-2026",
-    "post": "Agriculture Development Officer Group-A (Job-Trainee)",
-    "department": "Department of Agriculture, Himachal Pradesh",
-    "source": "HPPSC",
-    "qualification": "B.Sc. Agriculture (4-year degree) and M.Sc. Agriculture (2nd class) from a recognised institution",
-    "subject": "Agriculture",
-    "criteria": "Desirable: M.Sc. Agriculture 1st class or above. Knowledge of Himachal Pradesh customs, manners and dialects, and suitability for appointment under peculiar conditions of the State.",
-    "deadline": "2026-10-22",
-    "status": "review",
-    "reason": "Eligibility and application deadline not yet verified.",
-    "notificationUrl": "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDUbyy0Z1o%2FJ5mdBZRhOdQiJ2dT4h8rHe34qs%2FBwPNGPmM%3D",
-    "applyUrl": "",
-    "publishedDate": "2026-09-25"
+    id: "hppsc-63-9-2026",
+    post: "Agriculture Development Officer Group-A (Job-Trainee)",
+    department: "Department of Agriculture, Himachal Pradesh",
+    source: "HPPSC",
+    qualification:
+      "B.Sc. Agriculture (4-year degree) and M.Sc. Agriculture (2nd class) from a recognised institution. Verify exact essential qualifications from the official notification.",
+    subject: "Agriculture",
+    criteria:
+      "Desirable: M.Sc. Agriculture 1st class or above. Knowledge of Himachal Pradesh customs, manners and dialects, and suitability for appointment under peculiar conditions of the State. Detailed eligibility and age criteria require notification verification.",
+    deadline: "",
+    status: "review",
+    reason:
+      "Official advertisement listing confirmed. Application deadline and detailed eligibility require verification against the original notification PDF.",
+    notificationUrl:
+      "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDUbyy0Z1o%2FJ5mdBZRhOdQiJ2dT4h8rHe34qs%2FBwPNGPmM%3D",
+    applyUrl: "",
+    publishedDate: "2026-09-25"
   },
   {
-    "id": "hppsc-61-9-2026",
-    "post": "Assistant Professor (Anthropology)",
-    "department": "Himachal Pradesh Public Service Commission",
-    "source": "HPPSC",
-    "qualification": "(i) A good academic record with at least 55% marks or an equivalent of 55%, wherever the grading system is followed in Masters\nDegree level in the relevant subject from an Indian University or an equivalent degree from Foreign University recognized by the\nGovernment of India.\n\n(ii) A relaxation of 5% is provided (from 55% to 50% marks) at the Masters Degree for the SC/ST/OBC (Non creamy layer)\ncategories.\n\nAND\n\n(ili) A relaxation of 5% (from 55% to 50%) of marks, at the Master's level to the Physically and Visually Handicapped persons in\nappointment as Assistant Professors.\n\n(iv) A relaxation of 5% is provided from 55% to 50% of the marks to the Ph.D. Degree holders who have passed their masters\ndegree prior to the September, 1991.\n\n(v) B’ in the 7 point scale with letter grades O, A, B, C, D, E & F shall be regarded as equivalent of 55% wherever the grading\nsystem is followed (7 point scale is displayed in the Foot Note)\n\n(vi)Candidate besides fulfilling the above qualifications should have cleared the eligibility test (NET) for Assistant Professor\nconducted by the UGC, CSIR or similar test accredited by the State Public Service Commission.\n\n(vii) NET/SLET shall remain the minimum eligibility condition for recruitment and appointment of Assistant Professor in Universities /\nColleges / Institutions.\n\nProvided that the award of degree to candidates registered for the M.Phil/Ph.D programme prior to July 11, 2009, shall be\ngoverned by the provisions of the then existing Ordinances/Byelaws/Regulations of the Institutions awarding the degree and the\nPh.D candidates shall be exempted from the requirement of NET/SLET/SET for recruitment and appointment of Assistant Professor\nor equivalent position in Universities/Colleges/Institutions subject to the fulfilment of the following conditions:-\n\n(a) Ph.D. degree of the candidate awarded in regular mode only;\n\n(b) Evaluation of the Ph.D thesis by at least two external examiners;\n\n(c) Open Ph.D viva voce of the candidate had been conducted;\n\n(d) Candidate has published two research papers from his/her Ph.D work out of which at least one must be in a refereed journal;\n\n(e) Candidate has made at least two presentations in conferences/seminars, based on his /her Ph.D work.\n\n(a) to (e) as above are to to be certified by the Vice-Chancellor/Pro-Vice Chancellor/Dean (Academic Affairs)/Dean (University\ninstructions).”\n\nFOOTNOTE\n\nExplanation of Seven Point Scale\n\nGrade Grade Point Percentage equivalent\n‘O’ Outstanding 5.50-6.00 75-100\n\n‘A’ Very Good 4.50-5.49 65-74\n\n‘B’ Good 3.50-4.49 55-64\n\n‘C’ Average 2.50-3.49 45-54\n\n‘D’ Below Average 1.50-2.49 35-44\n\n‘E’ Poor 0.50-1.49 25-34\n\n‘F’ Fail 0.00-0.49 0-24",
-    "subject": "Anthropology",
-    "criteria": "Specified 5% marks relaxation for eligible reserved categories and PwD candidates. Desirable: Knowledge of Himachal Pradesh customs, manners and dialects, and suitability for appointment under conditions prevailing in the State.",
-    "deadline": "2026-10-16",
-    "status": "review",
-    "reason": "Automatically extracted. Verify against official notification.",
-    "notificationUrl": "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDUTVUe0nCIKKU9jLyhGEya0GRp2qQXO1kujMvupKhWlFw%3D",
-    "applyUrl": "",
-    "publishedDate": "2026-09-19"
+    id: "hppsc-61-9-2026",
+    post: "Assistant Professor (Anthropology)",
+    department: "Himachal Pradesh Public Service Commission",
+    source: "HPPSC",
+    qualification:
+      "Master's degree in the relevant subject with at least 55% marks or equivalent from a recognised Indian or foreign university, subject to applicable relaxations. NET/SLET/SET requirements and Ph.D. exemptions are subject to the official recruitment rules and notification. The detailed qualification text must be verified against the original advertisement.",
+    subject: "Anthropology",
+    criteria:
+      "The supplied notification text mentions relaxations for specified reserved categories, PwD candidates and certain Ph.D. holders. Exact applicability, NET exemption conditions, academic requirements and desirable qualifications must be checked against the official notification.",
+    deadline: "",
+    status: "review",
+    reason:
+      "Official advertisement listing confirmed. Original notification PDF must be checked to confirm deadline, qualifications, relaxations and application conditions.",
+    notificationUrl:
+      "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDUTVUe0nCIKKU9jLyhGEya0GRp2qQXO1kujMvupKhWlFw%3D",
+    applyUrl: "",
+    publishedDate: "2026-09-19"
   },
   {
-    "id": "hppsc-62-9-2026",
-    "post": "Medical Officer (General Wing)",
-    "department": "Himachal Pradesh Public Service Commission",
-    "source": "HPPSC",
-    "qualification": "Check official notification",
-    "subject": "Medical",
-    "criteria": "Eligibility and age criteria as per official advertisement.",
-    "deadline": "",
-    "status": "review",
-    "reason": "Eligibility and application deadline not yet verified.",
-    "notificationUrl": "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDU8OVHeK1TpVx4SlpZJoOUOt5MFxW3W1BbDCF2vzmM4nE%3D",
-    "applyUrl": "",
-    "publishedDate": "2026-09-19"
+    id: "hppsc-62-9-2026",
+    post: "Medical Officer (General Wing)",
+    department: "Himachal Pradesh Public Service Commission",
+    source: "HPPSC",
+    qualification:
+      "Check the official advertisement for essential medical qualifications, registration requirements and other eligibility conditions.",
+    subject: "Medical",
+    criteria:
+      "Eligibility, age limits, registration, experience and category-wise relaxations as prescribed in the official advertisement.",
+    deadline: "",
+    status: "review",
+    reason:
+      "Official advertisement listing confirmed. Qualification, application deadline, age criteria and application portal have not been independently verified from the original notification PDF.",
+    notificationUrl:
+      "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacTF%2B5RqdIHDU8OVHeK1TpVx4SlpZJoOUOt5MFxW3W1BbDCF2vzmM4nE%3D",
+    applyUrl: "",
+    publishedDate: "2026-09-19"
   },
   {
-    "id": "hppsc-60-9-2026",
-    "post": "Deputy Director Sainik Welfare",
-    "department": "Department of Sainik Welfare, Himachal Pradesh",
-    "source": "HPPSC",
-    "qualification": "Check official notification",
-    "subject": "Sainik Welfare",
-    "criteria": "Eligibility and age criteria as per official advertisement.",
-    "deadline": "",
-    "status": "review",
-    "reason": "Eligibility and application deadline not yet verified.",
-    "notificationUrl": "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllaccC7RwbeCT5iTamqZcnA2%2FNq8xwFR2KAdkQfKNO0v39KpMehI%2FsmduU%3D",
-    "applyUrl": "",
-    "publishedDate": "2026-09-02"
+    id: "hppsc-60-9-2026",
+    post: "Deputy Director Sainik Welfare",
+    department: "Department of Sainik Welfare, Himachal Pradesh",
+    source: "HPPSC",
+    qualification:
+      "Check the official advertisement for essential educational qualifications, service requirements and other eligibility conditions.",
+    subject: "Sainik Welfare",
+    criteria:
+      "Eligibility, age limits, experience, service-related conditions and category-wise relaxations as prescribed in the official advertisement.",
+    deadline: "",
+    status: "review",
+    reason:
+      "Official advertisement listing confirmed. Detailed qualifications, deadline and application portal require verification against the original notification.",
+    notificationUrl:
+      "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllaccC7RwbeCT5iTamqZcnA2%2FNq8xwFR2KAdkQfKNO0v39KpMehI%2FsmduU%3D",
+    applyUrl: "",
+    publishedDate: "2026-09-02"
   },
   {
-    "id": "hppsc-59-8-2026",
-    "post": "HP Administrative Services Combined Competitive Examination 2026",
-    "department": "Himachal Pradesh Public Service Commission",
-    "source": "HPPSC",
-    "qualification": "Check official notification",
-    "subject": "Any",
-    "criteria": "Eligibility and age criteria as per official advertisement.",
-    "deadline": "",
-    "status": "review",
-    "reason": "Eligibility and application deadline not yet verified.",
-    "notificationUrl": "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacYlnRK0MeZGEfxeUsdEM2p69nc6WDWdQBhIBr3TooKs4EQ87JuUdBNI%3D",
-    "applyUrl": "",
-    "publishedDate": "2026-08-26"
+    id: "hppsc-59-8-2026",
+    post: "HP Administrative Services Combined Competitive Examination 2026",
+    department: "Himachal Pradesh Public Service Commission",
+    source: "HPPSC",
+    qualification:
+      "Check the official HPAS 2026 advertisement for educational qualifications, age limits, category relaxations and other eligibility requirements.",
+    subject: "Any",
+    criteria:
+      "Eligibility, age limits, category-wise relaxations, examination conditions and other requirements as prescribed in the official HPAS 2026 notification.",
+    deadline: "",
+    status: "review",
+    reason:
+      "Official advertisement listing confirmed. Application deadline, detailed eligibility and application portal require verification against the original HPAS 2026 notification.",
+    notificationUrl:
+      "https://hppsc.hp.gov.in/CommonControls/CMSFileView?qs=oeMK915q2HkdpWSZ%2B0aaIFmLDoF0cTjGvKykbXugJ5FH4sUacllacYlnRK0MeZGEfxeUsdEM2p69nc6WDWdQBhIBr3TooKs4EQ87JuUdBNI%3D",
+    applyUrl: "",
+    publishedDate: "2026-08-26"
   }
 ];
