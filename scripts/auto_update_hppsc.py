@@ -338,26 +338,38 @@ def extract_deadline(text):
         text
     )
 
-    pattern = (
-        r"(?is)"
-        r"(?:closing\s+date\s+for\s+application|"
-        r"closing\s+date\s+for\s+fee|"
-        r"last\s+date\s+for\s+submission|"
-        r"last\s+date\s+for\s+receipt|"
-        r"last\s+date\s+to\s+apply|"
-        r"last\s+date|closing\s+date|deadline)"
-        r"[^.]{0,200}?"
-        r"(" + DATE_PATTERN + r")"
-    )
+    patterns = [
+        r"last\s+date\s+for\s+submission",
+        r"last\s+date\s+for\s+receipt",
+        r"last\s+date\s+to\s+apply",
+        r"closing\s+date\s+for\s+application",
+        r"closing\s+date",
+        r"last\s+date",
+        r"deadline"
+    ]
 
-    match = re.search(pattern, text)
+    for label in patterns:
 
-    if match:
+        pattern = (
+            r"(?is)"
+            + label
+            + r"[^.]{0,200}?"
+            + r"(" + DATE_PATTERN + r")"
+        )
 
-        parsed = parse_date(match.group(1))
+        matches = re.finditer(
+            pattern,
+            text
+        )
 
-        if parsed:
-            return parsed.isoformat()
+        for match in matches:
+
+            parsed = parse_date(
+                match.group(1)
+            )
+
+            if parsed:
+                return parsed.isoformat()
 
     return ""
 
@@ -496,72 +508,66 @@ def extract_qualification(text):
     return ""
 
 
-def extract_vacancies(text):
+def extract_qualification(text):
 
     if not text:
         return ""
 
-    patterns = [
-        r"(?:total\s+)?(?:number\s+of\s+)?"
-        r"(?:vacancies|posts|positions)\s*[:\-]?\s*(\d{1,5})",
+    text = text.replace("\xa0", " ")
 
-        r"(\d{1,5})\s+(?:vacancies|posts|positions)"
+    text = re.sub(
+        r"\r\n?",
+        "\n",
+        text
+    )
+
+    headings = [
+        r"essential qualifications?",
+        r"educational qualifications?",
+        r"minimum qualifications?",
+        r"eligibility criteria",
+        r"essential educational qualifications?"
     ]
 
-    for pattern in patterns:
+    end_headings = (
+        r"desirable qualifications?|"
+        r"age limit|"
+        r"application fee|"
+        r"how to apply|"
+        r"closing date|"
+        r"last date|"
+        r"important instructions|"
+        r"selection process|"
+        r"general instructions"
+    )
 
-        matches = re.findall(
-            pattern,
-            text,
-            flags=re.IGNORECASE
+    for heading in headings:
+
+        pattern = (
+            r"(?is)"
+            r"(?<!\w)"
+            r"(" + heading + r")"
+            r"\s*[:\-]?\s*"
+            r"(.*?)"
+            r"(?="
+            r"\n\s*(?:" + end_headings + r")\b"
+            r"|$"
+            r")"
         )
-
-        values = []
-
-        for value in matches:
-
-            try:
-
-                number = int(value)
-
-                if 1 <= number <= 50000:
-                    values.append(number)
-
-            except ValueError:
-                pass
-
-        if values:
-            return str(max(values))
-
-    return ""
-
-
-def extract_age(text):
-
-    patterns = [
-        r"(?:age limit|age should be|age must be)"
-        r".{0,100}?(\d{2})\s*(?:to|–|-|and)\s*(\d{2})\s*years",
-
-        r"(?:between|from)\s+(\d{2})\s*(?:to|and|-)\s*"
-        r"(\d{2})\s*years"
-    ]
-
-    for pattern in patterns:
 
         match = re.search(
             pattern,
-            text,
-            flags=re.IGNORECASE
+            text
         )
 
         if match:
 
-            return (
-                match.group(1)
-                + "-"
-                + match.group(2)
-                + " years"
+            qualification = clean_text(
+                match.group(2)
             )
+
+            if len(qualification) >= 20:
+                return qualification[:12000]
 
     return ""
 
@@ -748,6 +754,70 @@ def scan_generic_source(source):
 # ============================================================
 # BUILD CANDIDATE RECORD
 # ============================================================
+def extract_vacancies(text):
+
+    if not text:
+        return ""
+
+    patterns = [
+        r"total\s+number\s+of\s+vacancies\s*[:\-]?\s*(\d{1,5})",
+        r"total\s+vacancies\s*[:\-]?\s*(\d{1,5})",
+        r"total\s+posts\s*[:\-]?\s*(\d{1,5})",
+        r"number\s+of\s+posts\s*[:\-]?\s*(\d{1,5})"
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            text,
+            flags=re.IGNORECASE
+        )
+
+        if match:
+
+            try:
+                number = int(match.group(1))
+
+                if 1 <= number <= 50000:
+                    return str(number)
+
+            except ValueError:
+                pass
+
+    return ""
+
+
+def extract_age(text):
+
+    if not text:
+        return ""
+
+    patterns = [
+        r"(?:age limit|age should be|age must be)"
+        r".{0,100}?(\d{2})\s*(?:to|–|-|and)\s*(\d{2})\s*years",
+
+        r"(?:between|from)\s+(\d{2})\s*(?:to|and|-)\s*"
+        r"(\d{2})\s*years"
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            text,
+            flags=re.IGNORECASE
+        )
+
+        if match:
+
+            lower = int(match.group(1))
+            upper = int(match.group(2))
+
+            if 18 <= lower < upper <= 70:
+                return f"{lower}-{upper} years"
+
+    return ""
 
 def build_job(link):
 
@@ -1048,9 +1118,24 @@ def main():
         list(preview_by_url.values())
     )
 
+    # Preserve old review jobs and avoid duplicates.
+    old_review = read_json(REVIEW_FILE, [])
+    review_by_url = {}
+
+    if isinstance(old_review, list):
+        for job in old_review:
+            url = job_url(job)
+            if url:
+                review_by_url[url] = job
+
+    for job in review_jobs:
+        url = job_url(job)
+        if url:
+            review_by_url[url] = job
+
     save_json(
         REVIEW_FILE,
-        review_jobs
+        list(review_by_url.values())
     )
 
     save_json(
