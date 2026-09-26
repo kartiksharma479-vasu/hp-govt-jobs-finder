@@ -281,6 +281,39 @@ def load_sources():
 # EXISTING JOBS
 # ============================================================
 
+def parse_jobs_js_array(array_text):
+    """Parse the JSON-like JavaScript object array used by the frontend."""
+    # First try strict JSON, which supports fully quoted keys and no trailing commas.
+    try:
+        parsed = json.loads(array_text)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # The frontend's jobs.js uses unquoted object keys and trailing commas.
+    # Quote only bare keys at the start of object-property lines, then remove
+    # JavaScript-style trailing commas before closing braces/brackets.
+    normalized = re.sub(
+        r'(?m)^(\\s*)([A-Za-z_$][A-Za-z0-9_$]*)\\s*:',
+        r'\\1"\\2":',
+        array_text,
+    )
+    normalized = re.sub(r',\\s*([}\\]])', r'\\1', normalized)
+
+    try:
+        parsed = json.loads(normalized)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"Could not parse jobs.js JOBS array as JSON-like JavaScript: {error}"
+        ) from error
+
+    if not isinstance(parsed, list):
+        raise ValueError("JOBS in jobs.js is not an array.")
+
+    return parsed
+
+
 def load_existing_jobs():
 
     jobs_from_json = None
@@ -334,7 +367,7 @@ def load_existing_jobs():
             )
 
         try:
-            jobs_from_json = json.loads(match.group(1))
+            jobs_from_json = parse_jobs_js_array(match.group(1))
 
         except json.JSONDecodeError as error:
             raise ValueError(
@@ -359,7 +392,7 @@ def load_existing_jobs():
                 re.DOTALL,
             )
             if js_match:
-                js_jobs = json.loads(js_match.group(1))
+                js_jobs = parse_jobs_js_array(js_match.group(1))
                 if isinstance(js_jobs, list) and js_jobs:
                     raise ValueError(
                         "jobs.json is empty but jobs.js contains records. "
