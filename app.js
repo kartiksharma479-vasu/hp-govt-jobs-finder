@@ -8,14 +8,18 @@ function isSaved(job){return savedIds.includes(job.id)}
 function escapeHtml(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function jobCard(job){
   const saved=isSaved(job);
+  const qualification = job.qualification || "Check official notification";
   const deadline=new Date(job.deadline+"T00:00:00");
   const dateText=isNaN(deadline)?"Not specified":deadline.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
   const apply=job.applyUrl ? `<a class="small-btn primary" href="${escapeHtml(job.applyUrl)}" target="_blank" rel="noopener">Apply Now ↗</a>` : `<span class="small-btn disabled" title="Official application link not verified">Apply link pending</span>`;
   const notice=job.notificationUrl ? `<a class="small-btn" href="${escapeHtml(job.notificationUrl)}" target="_blank" rel="noopener">Notification ↗</a>` : `<span class="small-btn disabled">Notice pending</span>`;
+  const qualificationText = qualification.length > 180
+  ? qualification.slice(0, 180) + "..."
+  : qualification;
   return `<article class="job-card">
     <div class="job-card-top"><span class="source-chip">${escapeHtml(job.source)}</span><button class="save-btn ${saved?"saved":""}" data-save="${escapeHtml(job.id)}" aria-label="Save job">${saved?"♥":"♡"}</button></div>
     <h3>${escapeHtml(job.post)}</h3><p class="job-dept">${escapeHtml(job.department)}</p>
-    <div class="job-meta"><div><span class="meta-label">Qualification</span><span class="meta-value">${escapeHtml(job.qualification.length > 180 ? job.qualification.slice(0, 180) + "..." : job.qualification)}${job.qualification.length > 180 ? '<details><summary>View More</summary><div>' + escapeHtml(job.qualification) + '</div></details>' : ''}</span></div><div><span class="meta-label">Last date (sample)</span><span class="meta-value">${dateText}</span></div></div>
+    <div class="job-meta"><div><span class="meta-label">Qualification</span><span class="meta-value">${escapeHtml(qualificationText)}${qualification.length > 180 ? '<details><summary>View More</summary><div>' + escapeHtml(job.qualification) + '</div></details>' : ''}</span></div><div><span class="meta-label">Last date</span><span class="meta-value">${dateText}</span></div></div>
     <p class="job-dept"><strong>Criteria:</strong> ${escapeHtml(job.criteria)}</p>
     <div class="card-bottom"><span class="eligibility ${job.status}">${statusLabel(job.status)}</span><div class="card-actions">${notice}${apply}</div></div>
   </article>`;
@@ -23,7 +27,7 @@ function jobCard(job){
 function emptyState(title,desc){return `<div class="empty-state"><strong>${title}</strong><p>${desc}</p></div>`}
 function renderGrid(id,jobs,emptyTitle="No jobs found",emptyDesc="Try changing your search or filters."){$(id).innerHTML=jobs.length?jobs.map(jobCard).join(""):emptyState(emptyTitle,emptyDesc)}
 function render(){
-  const eligible=JOBS.filter(j=>j.status==="eligible"),notEligible=JOBS.filter(j=>j.status!=="eligible"),saved=JOBS.filter(isSaved);
+  const eligible=JOBS.filter(j=>j.status==="eligible"),notEligible=JOBS.filter(j=>j.status==="noteligible"),review=JOBS.filter(j=>j.status==="review"),saved=JOBS.filter(isSaved);
   $("statAll").textContent=JOBS.length;$("statEligible").textContent=eligible.length;$("statSaved").textContent=saved.length;
   const now=new Date();const soon=new Date();soon.setDate(now.getDate()+14);
   $("statClosing").textContent=JOBS.filter(j=>{const d=new Date(j.deadline+"T00:00:00");return d>=now&&d<=soon}).length;
