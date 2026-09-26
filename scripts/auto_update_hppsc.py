@@ -153,13 +153,23 @@ def normalize_url(url):
 
 def job_url(job):
 
-    return normalize_url(
+    raw_url = str(
         job.get("notificationUrl")
         or job.get("applyUrl")
         or job.get("applicationUrl")
         or job.get("url")
         or ""
+    ).strip()
+
+    markdown_match = re.fullmatch(
+        r"\[.*?\]\((https?://[^)]+)\)",
+        raw_url
     )
+
+    if markdown_match:
+        raw_url = markdown_match.group(1)
+
+    return normalize_url(raw_url)
 
 
 def make_id(url):
@@ -821,22 +831,29 @@ def extract_age(text):
 
 def build_job(link):
 
-    url = normalize_url(link["url"])
+    raw_url = str(link.get("url", "")).strip()
 
-    job_id = (
-        "job-"
-        + make_id(url)
+    # Convert Markdown links into plain URLs
+    markdown_match = re.fullmatch(
+        r"\[.*?\]\((https?://[^)]+)\)",
+        raw_url
     )
 
-    title = clean_text(
-        link.get("title", "")
-    )
+    if markdown_match:
+        raw_url = markdown_match.group(1)
 
-    text = extract_pdf_text(
-        url,
-        job_id
-    )
+    url = normalize_url(raw_url)
 
+    if not url.startswith(("http://", "https://")):
+        return None
+
+    job_id = "job-" + make_id(url)
+
+    title = clean_text(link.get("title", ""))
+
+    text = extract_pdf_text(url, job_id)
+
+    # Extract a title from the notification if the source has no title
     if not title:
         lines = [
             clean_text(line)
@@ -845,7 +862,6 @@ def build_job(link):
         ]
 
         for line in lines[:30]:
-
             if any(
                 word in line.lower()
                 for word in [
@@ -860,7 +876,6 @@ def build_job(link):
 
     deadline = extract_deadline(text)
     qualification = extract_qualification(text)
-
     age = extract_age(text)
     vacancies = extract_vacancies(text)
 
@@ -869,23 +884,27 @@ def build_job(link):
         "post": title or "Check official notification",
         "department": link.get("source", ""),
         "source": link.get("source", ""),
-        "qualification": qualification or "Check official notification",
+        "qualification": (
+            qualification
+            or "Check official notification"
+        ),
         "subject": "",
         "criteria": (
-            "Verify age, category and other eligibility "
-            "conditions in the official notification."
+            "Verify age, category, domicile, experience "
+            "and other eligibility conditions in the "
+            "official notification."
         ),
-        "deadline": deadline,
+        "deadline": deadline or "",
         "status": "review",
         "reason": (
-            "Automatically collected. Verify official "
-            "notification before publishing."
+            "Automatically collected. Official details "
+            "and eligibility require verification."
         ),
         "notificationUrl": url,
         "applyUrl": "",
         "publishedDate": link.get("publishedDate", ""),
-        "ageLimit": age,
-        "vacancies": vacancies,
+        "ageLimit": age or "",
+        "vacancies": vacancies or "",
         "verificationStatus": "review",
         "lastChecked": TODAY.isoformat()
     }
@@ -910,23 +929,39 @@ def merge_existing(existing, new):
 
     merged = dict(existing)
 
-    # Only update extracted information if the old field
-    # is empty. Preserve manually verified data and status.
+    if not isinstance(new, dict):
+        merged["lastChecked"] = TODAY.isoformat()
+        return merged
+
+    # Preserve all existing non-empty values.
+    # Only fill fields that are currently empty.
     fields = [
+        "post",
+        "department",
+        "source",
         "qualification",
+        "subject",
+        "criteria",
         "deadline",
         "ageLimit",
         "vacancies",
-        "publishedDate"
+        "publishedDate",
+        "notificationUrl",
+        "applyUrl"
     ]
 
     for field in fields:
 
+        old_value = existing.get(field)
         new_value = new.get(field)
 
-        if new_value and not existing.get(field):
+        if (
+            new_value
+            and not old_value
+        ):
             merged[field] = new_value
 
+    # Preserve manually verified status and reason.
     merged["lastChecked"] = TODAY.isoformat()
 
     return merged
@@ -1051,6 +1086,13 @@ def main():
 
             candidate = build_job(link)
 
+            if not candidate:
+                logging.warning(
+                    "Invalid notification skipped: %s",
+                    url
+                )
+                continue
+
             deadline = candidate.get("deadline", "")
 
             if deadline:
@@ -1105,12 +1147,17 @@ def main():
             if url:
                 preview_by_url[url] = job
 
+    # Add new candidates without overwriting existing details.
     for job in new_candidates:
 
         url = job_url(job)
 
         if url:
-            preview_by_url[url] = job
+
+            preview_by_url[url] = merge_existing(
+                preview_by_url.get(url, {}),
+                job
+            )
 
     # Do not add new candidates to live jobs.
     save_json(
@@ -1119,25 +1166,40 @@ def main():
     )
 
     # Preserve old review jobs and avoid duplicates.
-    old_review = read_json(REVIEW_FILE, [])
+    old_review = read_json(
+        REVIEW_FILE,
+        []
+    )
+
     review_by_url = {}
 
     if isinstance(old_review, list):
+
         for job in old_review:
+
             url = job_url(job)
+
             if url:
                 review_by_url[url] = job
 
+    # Add new review jobs without overwriting existing details.
     for job in review_jobs:
+
         url = job_url(job)
+
         if url:
-            review_by_url[url] = job
+
+            review_by_url[url] = merge_existing(
+                review_by_url.get(url, {}),
+                job
+            )
 
     save_json(
         REVIEW_FILE,
         list(review_by_url.values())
     )
 
+    # Save live jobs separately.
     save_json(
         JOBS_FILE,
         live_jobs
